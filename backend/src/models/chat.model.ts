@@ -1,12 +1,9 @@
 import mongoose from 'mongoose';
 
-const ChatSchema = new mongoose.Schema(
-  {
-    username: { type: String, required: true },
-    message: { type: String, required: true },
-    room: { type: String },
-  },
-  { timestamps: true }
-);
+const chatSchema = new mongoose.Schema({
+  username: String,
+  message: String,
+  room: String
+}, { timestamps: true }); // <- 🔥 timestamps activados
 
-export const Chat = mongoose.model('Chat', ChatSchema);
+export const Chat = mongoose.model('Chat', chatSchema);

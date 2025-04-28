@@ -1,0 +1,102 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout>
+  <h1>My Awesome Chat</h1>
+  <h2>Choose room:</h2>
+  <button class="btn-room" data-room="Room 1">Room 1</button>
+  <button class="btn-room" data-room="Room 2">Room 2</button>
+  <button class="btn-room" data-room="Room 3">Room 3</button>
+
+  <form id="chat-form">
+    <input type="text" id="username" placeholder="Username">
+    <input type="text" id="chat-message" placeholder="Message">
+    <button>Send</button>
+  </form>
+
+  <h3 id="room-heading"></h3>
+
+  <ul id="messages">
+    <!-- CHAT MESSAGES GO HERE -->
+  </ul>
+
+  <script type="module">
+    import { io } from "https://cdn.socket.io/4.8.1/socket.io.esm.min.js";
+
+    const socket = io('http://localhost:3500');
+    const inputUsername = document.querySelector('#username');
+    const inputMessage = document.querySelector('#chat-message');
+    const roomButtons = document.querySelectorAll('.btn-room');
+    const messages = document.querySelector('#messages');
+    const roomHeading = document.querySelector('#room-heading');
+    let currentRoom = '';
+
+    // Handle room buttons
+    roomButtons.forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const roomName = btn.getAttribute('data-room');
+        const username = inputUsername.value || 'Anonymous';
+
+        // Leave current room
+        if (currentRoom) {
+          socket.emit('leave room', {
+            username,
+            room: currentRoom
+          });
+        }
+
+        // Join new room
+        currentRoom = roomName;
+        roomHeading.textContent = roomName;
+        socket.emit('join room', {
+          username,
+          room: currentRoom
+        });
+
+        // Clear current messages
+        messages.innerHTML = '';
+
+        // 🔥 Fetch historial de la nueva room
+        const res = await fetch(`http://localhost:3500/api/chat/room/${currentRoom}`);
+        const data = await res.json();
+
+        data.forEach((msg) => {
+          const li = document.createElement('li');
+          li.innerHTML = `
+            <img src="https://robohash.org/${msg.username.toLowerCase()}" width="30" height="30" />
+            <span style="${msg.username === inputUsername.value ? 'color: green' : 'color: black; font-style: italic;'}">${msg.username ?? 'System'}:</span>
+            ${msg.message}`;
+          messages.appendChild(li);
+        });
+      });
+    });
+
+    const form = document.querySelector('#chat-form');
+
+    // Send message to server
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      if (currentRoom && inputMessage.value) {
+        socket.emit('chat', {
+          username: inputUsername.value,
+          message: inputMessage.value,
+          room: currentRoom
+        });
+      }
+      inputMessage.value = ''; // Clear message field
+    });
+
+    // Listen for new chat messages
+    socket.on('chat', (data) => {
+      if (data.room === currentRoom) {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <img src="https://robohash.org/${data.username.toLowerCase()}" width="30" height="30" />
+          <span style="${data.username === inputUsername.value ? 'color: green' : 'color: black; font-style: italic;'}">${data.username ?? 'System'}:</span>
+          ${data.message}`;
+        messages.appendChild(li);
+      }
+    });
+  </script>
+</Layout>

@@ -2,15 +2,36 @@ import { Request, Response } from 'express';
 import { Chat } from '../models/chat.model';
 
 // Get all chats
-const getAllChats = async (req: Request, res: Response) => {
+export const getAllChats = async (req: Request, res: Response) => {
   try {
-    const chats = await Chat.find().sort({ createdAt: -1 }); // Sort by createdAt field
-    res.status(200).json(chats);
+    const chats = await Chat.find({ 
+      $or: [
+        { room: { $exists: false } }, 
+        { room: null }, 
+        { room: '' }
+      ]
+    }).sort({ createdAt: 1 });
+    
+    res.json(chats);
   } catch (error) {
-    res.status(500).json({ error: 'Error fetching chats' });
+    console.error('Error fetching general chats:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+
+export const getMessagesByRoom = async (req: Request, res: Response) => {
+  try {
+    const roomName = req.params.roomName;
+    const chats = await Chat.find({ room: roomName }).sort({ createdAt: 1 });
+    res.json(chats);
+  } catch (error) {
+    console.error('Error fetching room chats:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 };
 
 export default {
-  getAllChats
+  getAllChats,
+  getMessagesByRoom
 }

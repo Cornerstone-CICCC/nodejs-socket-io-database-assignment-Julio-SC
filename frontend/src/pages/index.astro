@@ -1,0 +1,76 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout>
+
+  <h1>My Awesome Chat</h1>
+  <form id="chat-form">
+    <input type="text" id="username" placeholder="Username">
+    <input type="text" id="chat-message" placeholder="Message">
+    <button>Send</button>
+  </form>
+
+  <ul id="messages">
+    <!-- CHAT MESSAGES GO HERE -->
+  </ul>
+
+  <script type="module">
+    import { io } from "https://cdn.socket.io/4.8.1/socket.io.esm.min.js";
+
+    const socket = io('http://localhost:3500');
+    const inputUsername = document.querySelector('#username');
+    const inputMessage = document.querySelector('#chat-message');
+    const form = document.querySelector('#chat-form');
+    const messages = document.querySelector('#messages');
+
+    const messageCache = new Set(); // 🔥 Cache de mensajes únicos por _id
+
+    // 🔥 Cargar mensajes guardados
+    const loadMessages = async () => {
+      try {
+        const res = await fetch('http://localhost:3500/api/chat');
+        const data = await res.json();
+
+        data.forEach((msg) => {
+          if (!messageCache.has(msg._id)) {
+            const li = document.createElement('li');
+            li.innerHTML = `<span style="${msg.username === inputUsername.value ? 'color: green' : 'color: black'}">${msg.username ?? 'System'}:</span> ${msg.message}`;
+            messages.appendChild(li);
+            messageCache.add(msg._id);
+          }
+        });
+      } catch (error) {
+        console.error('Error loading messages:', error);
+      }
+    };
+
+    loadMessages(); // Ejecutar al cargar
+
+    // 🎯 Enviar mensaje (sin pintar manualmente)
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      if (inputUsername.value.trim() && inputMessage.value.trim()) {
+        socket.emit('chat', {
+          username: inputUsername.value,
+          message: inputMessage.value
+        });
+        inputMessage.value = '';
+      }
+    });
+
+    // 🎯 Escuchar mensajes nuevos en tiempo real
+    socket.on('chat', (data) => {
+      if (!messageCache.has(data._id)) {
+        const li = document.createElement('li');
+        li.innerHTML = `<span style="${data.username === inputUsername.value ? 'color: green' : 'color: black'}">${data.username ?? 'System'}:</span> ${data.message}`;
+        messages.appendChild(li);
+        if (data._id) {
+          messageCache.add(data._id);
+        }
+      }
+    });
+  </script>
+
+</Layout>
+
